@@ -5,12 +5,12 @@ export interface WhaleTransaction {
     from : string;
     to : string;
     value : string;
-    valueUsd : string;
+    valueUsd : number;
     token : string;
     tokenSymbol : string;
-    blockNumber : string;
-    timestamp : string;
-    aiSummary : string;
+    blockNumber : number;
+    timestamp : number;
+    aiSummary ?: string;
     impactScore ?: number;
     isAnomaly ?: boolean;
 }
