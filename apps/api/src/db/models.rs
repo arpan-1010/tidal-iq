@@ -10,6 +10,7 @@ pub struct Transaction {
     pub from_address: String,
     pub to_address: String,
     pub value: String,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub value_usd: Option<sqlx::types::Decimal>,
     pub token: String,
     pub token_symbol: String,

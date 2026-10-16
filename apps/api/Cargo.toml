@@ -1,5 +1,5 @@
 [package]
-name = "whale-alert-api"
+name = "tidaliq-api"
 version = "0.1.0"
 edition = "2021"
 
@@ -33,7 +33,7 @@ reqwest = { version = "0.12", features = ["json"] }
 dotenvy = "0.15"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
-rust_decimal = { version = "1", features = ["serde-with-str"] }
+rust_decimal = { version = "1", features = ["serde-with-float"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1"

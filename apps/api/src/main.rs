@@ -3,18 +3,22 @@ mod routes;
 mod services;
 
 use crate::db::repository::TransactionRepo;
-use crate::services::blockchain::BlockchainService;
+use crate::services::bitcoin::BitcoinService;
+use crate::services::ethereum::EthereumService;
 use crate::services::price::PriceService;
-use axum::{
-    Router,
-    routing::get,
-    http::Method,
-    response::Json,
-};
+use crate::services::solana::SolanaService;
+use axum::{http::Method, response::Json, routing::get, Router};
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
+
+fn env_f64(name: &str, default: f64) -> f64 {
+    std::env::var(name)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -23,44 +27,70 @@ async fn main() -> anyhow::Result<()> {
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let alchemy_key = std::env::var("ALCHEMY_API_KEY").expect("ALCHEMY_API_KEY must be set");
-    let threshold: f64 = std::env::var("THRESHOLD_USD").unwrap_or_else(|_| "500000".to_string())
-        .parse()
-        .unwrap_or(500_000.0);
-
+    let default_threshold = env_f64("THRESHOLD_USD", 500_000.0);
+    let eth_threshold = env_f64("ETH_THRESHOLD_USD", default_threshold);
+    let sol_threshold = env_f64("SOL_THRESHOLD_USD", default_threshold);
+    let btc_threshold = env_f64("BTC_THRESHOLD_USD", default_threshold);
     let port = std::env::var("PORT").unwrap_or_else(|_| "4000".to_string());
 
     let pool = PgPoolOptions::new()
         .max_connections(10)
         .connect(&database_url)
         .await?;
-
     println!("Connected to DB");
 
     let repo = Arc::new(TransactionRepo::new(pool));
-    let price_svc = PriceService::new();
+    let price_svc = PriceService::new(&alchemy_key);
 
-    let blockchain = Arc::new(BlockchainService::new(
+    let ethereum = Arc::new(EthereumService::new(
         Arc::clone(&repo),
-        price_svc,
-        threshold,
+        price_svc.clone(),
+        eth_threshold,
         &alchemy_key,
     ));
-    tokio::spawn(async move {blockchain.start().await});
+    tokio::spawn(async move { ethereum.start().await });
+
+    let solana = Arc::new(SolanaService::new(
+        Arc::clone(&repo),
+        price_svc.clone(),
+        sol_threshold,
+        &alchemy_key,
+    ));
+    tokio::spawn(async move { solana.start().await });
+
+    let bitcoin = Arc::new(BitcoinService::new(
+        Arc::clone(&repo),
+        price_svc.clone(),
+        btc_threshold,
+        &alchemy_key,
+    ));
+    tokio::spawn(async move { bitcoin.start().await });
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
         .allow_origin(Any);
 
+    let tx_routes = Router::new()
+        .route("/transactions", get(routes::transactions::list_transactions))
+        .route("/transactions/{hash}", get(routes::transactions::get_transaction))
+        .route("/stats", get(routes::transactions::get_stats))
+        .route("/volume", get(routes::transactions::get_volume))
+        .with_state(Arc::clone(&repo));
+
+    let price_routes = Router::new()
+        .route("/price-history", get(routes::prices::price_history))
+        .with_state(price_svc);
+
     let app = Router::new()
-        .route("/health", get(|| async {Json(json!({"status": "ok"}))}))
-        .route("/", get(|| async {Json(json!({"message": "Whale Alert API"}))}))
-        .route("/transactions/{hash}", get(routes::transactions::list_transactions))
-        .layer(cors)
-        .with_state(repo);
+        .route("/health", get(|| async { Json(json!({"status": "ok"})) }))
+        .route("/", get(|| async { Json(json!({"message": "TidalIq API"})) }))
+        .merge(tx_routes)
+        .merge(price_routes)
+        .layer(cors);
 
     let addr = format!("0.0.0.0:{}", port);
     println!("API running on http://localhost:{}", port);
-    
+
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;
 
