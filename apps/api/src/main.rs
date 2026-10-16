@@ -40,6 +40,25 @@ async fn main() -> anyhow::Result<()> {
     println!("Connected to DB");
 
     let repo = Arc::new(TransactionRepo::new(pool));
+
+    {
+        let repo = Arc::clone(&repo);
+        tokio::spawn(async move {
+            loop {
+                if let Err(e) = repo.score_unscored().await { eprintln!("score error: {}", e); }
+                if let Err(e) = repo.flag_anomalies().await { eprintln!("anomaly error: {}", e); }
+                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+            }
+        });
+    }
+
+    if let Ok(ai_key) = std::env::var("AI_API_KEY") {
+        let base = std::env::var("AI_BASE_URL").unwrap_or_else(|_| "https://api.x.ai/v1".into());
+        let model = std::env::var("AI_MODEL").expect("AI_MODEL must be set when AI_API_KEY is set");
+        let ai = Arc::new(services::ai::AiService::new(Arc::clone(&repo), base, model, ai_key));
+        tokio::spawn(async move { ai.start().await });
+    }
+
     let price_svc = PriceService::new(&alchemy_key);
 
     let ethereum = Arc::new(EthereumService::new(
@@ -75,6 +94,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/transactions/{hash}", get(routes::transactions::get_transaction))
         .route("/stats", get(routes::transactions::get_stats))
         .route("/volume", get(routes::transactions::get_volume))
+        .route("/insights", get(routes::transactions::get_insights)) 
         .with_state(Arc::clone(&repo));
 
     let price_routes = Router::new()

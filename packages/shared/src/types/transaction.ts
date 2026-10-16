@@ -1,24 +1,17 @@
 export interface WhaleTransaction {
-    id : string;
-    hash : string;
-    chain : string;
-    from : string;
-    to : string;
-    value : string;
-    valueUsd : number;
-    token : string;
-    tokenSymbol : string;
-    blockNumber : number;
-    timestamp : number;
-    aiSummary ?: string;
-    impactScore ?: number;
-    isAnomaly ?: boolean;
-}
-
-export interface WalletProfile {
-    address : string;
-    label ?: string;
-    totalVolumeUsd : number;
-    transactionCount : number;
-    lastSeen : number;   
+  id: number | string;
+  hash: string;
+  chain: string;
+  from_address: string;
+  to_address: string;
+  value: string;
+  value_usd: number;
+  token: string;
+  token_symbol: string;
+  block_number: number;
+  tx_timestamp: string;
+  ai_summary: string | null;
+  impact_score: number | null;
+  is_anomaly: boolean | null;
+  anomaly_reason: string | null;
 }

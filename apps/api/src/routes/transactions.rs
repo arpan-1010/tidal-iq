@@ -80,3 +80,23 @@ pub async fn get_volume(
             StatusCode::INTERNAL_SERVER_ERROR
         })
 }
+
+#[derive(serde::Serialize)]
+pub struct InsightsResponse {
+    top: Vec<crate::db::repository::InsightRow>,
+    anomalies: Vec<crate::db::repository::InsightRow>,
+}
+
+pub async fn get_insights(
+    State(repo): State<Arc<TransactionRepo>>,
+) -> Result<Json<InsightsResponse>, axum::http::StatusCode> {
+    let top = repo.get_insights(false, 5).await.map_err(|e| {
+        eprintln!("insights error: {}", e);
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    let anomalies = repo.get_insights(true, 5).await.map_err(|e| {
+        eprintln!("insights error: {}", e);
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok(Json(InsightsResponse { top, anomalies }))
+}

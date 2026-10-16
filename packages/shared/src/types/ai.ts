@@ -1,15 +1,14 @@
 export interface AISummary {
-    transactionId : string;
-    summary : string;
-    impactScore : number;
-    isANomaly : boolean;
-    anomalyReason ?: string;
-    citations : string[];
-    generatedAt : number;
+  transactionId: string;
+  summary: string;
+  impactScore: number;
+  isAnomaly: boolean;
+  anomalyReason?: string;
+  generatedAt: number;
 }
 
 export interface ChatMessage {
-    role : 'user | assistant';
-    content : string;
-    timestamp : number;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
 }
