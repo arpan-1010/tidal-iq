@@ -45,6 +45,10 @@ impl TransactionRepo {
         Self { pool }
     }
 
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
+    }
+
     pub async fn create(&self, tx: &NewTransaction) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let value_usd = Decimal::from_f64(tx.value_usd)

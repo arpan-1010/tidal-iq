@@ -1,13 +1,14 @@
 mod db;
 mod routes;
 mod services;
+mod ai;
 
 use crate::db::repository::TransactionRepo;
 use crate::services::bitcoin::BitcoinService;
 use crate::services::ethereum::EthereumService;
 use crate::services::price::PriceService;
 use crate::services::solana::SolanaService;
-use axum::{http::Method, response::Json, routing::get, Router};
+use axum::{http::Method, response::Json, routing::{get, post}, Router};
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
@@ -52,11 +53,33 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
-    if let Ok(ai_key) = std::env::var("AI_API_KEY") {
-        let base = std::env::var("AI_BASE_URL").unwrap_or_else(|_| "https://api.x.ai/v1".into());
-        let model = std::env::var("AI_MODEL").expect("AI_MODEL must be set when AI_API_KEY is set");
-        let ai = Arc::new(services::ai::AiService::new(Arc::clone(&repo), base, model, ai_key));
-        tokio::spawn(async move { ai.start().await });
+    let ai_client = match ai::AiConfig::from_env() {
+        Some(cfg) => {
+            let client = ai::nvidia::NvidiaClient::new(cfg, repo.pool().clone());
+            let bg = Arc::clone(&client);
+            tokio::spawn(async move { bg.start().await });
+            Some(client)
+        }
+        None => {
+            println!("AI layer disabled (set NVIDIA_API_KEY to enable)");
+            None
+        }
+    };
+
+    let ai_state = Arc::new(ai::AiState::new(Arc::clone(&repo), ai_client));
+    if ai_state.client.is_some() {
+        let s = Arc::clone(&ai_state);
+        tokio::spawn(async move { s.run_worker().await });
+    }
+
+    if ai_state.client.is_some() {
+        let s = Arc::clone(&ai_state);
+        tokio::spawn(async move { s.run_embedder().await });
+    }
+
+    if ai_state.client.is_some() {
+        let s = Arc::clone(&ai_state);
+        tokio::spawn(ai_state.clone().run_digest_worker());
     }
 
     let price_svc = PriceService::new(&alchemy_key);
@@ -101,11 +124,28 @@ async fn main() -> anyhow::Result<()> {
         .route("/price-history", get(routes::prices::price_history))
         .with_state(price_svc);
 
+    let ai_routes = Router::new()
+        .route("/ai/summarize-transaction", post(routes::ai::summarize_transaction))
+        .route("/ai/transactions/{hash}", get(routes::ai::get_analysis))
+        .route("/ai/models", get(routes::ai::models))
+        .route("/ai/status", get(routes::ai::status))
+        .route("/ai/probe", get(routes::ai::probe))
+        .route("/ai/probe-embed", get(routes::ai::probe_embed))
+        .route("/ai/search", get(routes::ai::search_get).post(routes::ai::search_post))
+        .route("/ai/chat", post(routes::ai::chat_post))
+        .route("/ai/chat/stream", post(routes::ai::chat_stream))
+        .route("/ai/wallets/{chain}/{address}", get(routes::ai::wallet_profile))
+        .route("/ai/feedback", post(routes::ai::feedback))
+        .route("/ai/narrative", get(routes::ai::narrative_get))
+        .route("/ai/digest", get(routes::ai::digest_get))
+        .with_state(Arc::clone(&ai_state));
+
     let app = Router::new()
         .route("/health", get(|| async { Json(json!({"status": "ok"})) }))
         .route("/", get(|| async { Json(json!({"message": "TidalIq API"})) }))
         .merge(tx_routes)
         .merge(price_routes)
+        .merge(ai_routes)
         .layer(cors);
 
     let addr = format!("0.0.0.0:{}", port);
