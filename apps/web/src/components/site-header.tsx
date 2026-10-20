@@ -40,7 +40,7 @@ export function SiteHeader() {
 
   return (
     <header className="whitespace-nowrap pointer-events-none sticky top-4 z-40 flex justify-center px-4">
-      <nav className="pointer-events-auto flex max-w-full items-center gap-0.5 max-w-[calc(100vw-2rem)] rounded-full border border-white/10 bg-card/60 p-1.5 shadow-lg shadow-black/20 backdrop-blur-md">
+      <nav className="pointer-events-auto flex max-w-full items-center gap-1 max-w-[calc(100vw-2rem)] rounded-full border border-white/10 bg-card/60 p-1.5 shadow-lg shadow-black/20 backdrop-blur-md">
         {NAV.map((item) => {
           const isActive = active === item.id;
           const Icon = item.icon;
