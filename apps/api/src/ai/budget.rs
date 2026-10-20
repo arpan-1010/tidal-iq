@@ -9,7 +9,11 @@ pub struct Budget {
 
 impl Budget {
     pub fn new(limit: u64) -> Self {
-        Self { limit, used: AtomicU64::new(0), day: AtomicI64::new(0) }
+        Self {
+            limit,
+            used: AtomicU64::new(0),
+            day: AtomicI64::new(0),
+        }
     }
 
     fn today() -> i64 {

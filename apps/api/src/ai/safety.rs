@@ -1,8 +1,18 @@
 use super::context::TxContext;
 
 const FORBIDDEN: &[&str] = &[
-    "guarantee", "will pump", "will dump", "buy now", "sell now", "financial advice",
-    "price target", "to the moon", "you should buy", "you should sell", "bullish", "bearish",
+    "guarantee",
+    "will pump",
+    "will dump",
+    "buy now",
+    "sell now",
+    "financial advice",
+    "price target",
+    "to the moon",
+    "you should buy",
+    "you should sell",
+    "bullish",
+    "bearish",
 ];
 
 pub fn sanitize_label(s: &str) -> String {
@@ -45,24 +55,33 @@ pub fn numbers_in(text: &str) -> Vec<f64> {
         while raw.ends_with(',') || raw.ends_with('.') {
             raw.pop();
         }
-        let Ok(mut n) = raw.replace(',', "").parse::<f64>() else { continue };
+        let Ok(mut n) = raw.replace(',', "").parse::<f64>() else {
+            continue;
+        };
 
-        let rest: String = chars[i..].iter().take(10).collect::<String>().to_lowercase();
+        let rest: String = chars[i..]
+            .iter()
+            .take(10)
+            .collect::<String>()
+            .to_lowercase();
         let trimmed = rest.trim_start();
-        let mult = if trimmed.starts_with("billion") { 1e9 }
-            else if trimmed.starts_with("million") { 1e6 }
-            else if trimmed.starts_with("thousand") { 1e3 }
-            else {
-                let mut it = rest.chars();
-                let c1 = it.next();
-                let boundary = !it.next().map_or(false, |c| c.is_alphabetic());
-                match c1 {
-                    Some('b') if boundary => 1e9,
-                    Some('m') if boundary => 1e6,
-                    Some('k') if boundary => 1e3,
-                    _ => 1.0,
-                }
-            };
+        let mult = if trimmed.starts_with("billion") {
+            1e9
+        } else if trimmed.starts_with("million") {
+            1e6
+        } else if trimmed.starts_with("thousand") {
+            1e3
+        } else {
+            let mut it = rest.chars();
+            let c1 = it.next();
+            let boundary = !it.next().map_or(false, |c| c.is_alphabetic());
+            match c1 {
+                Some('b') if boundary => 1e9,
+                Some('m') if boundary => 1e6,
+                Some('k') if boundary => 1e3,
+                _ => 1.0,
+            }
+        };
         n *= mult;
         out.push(n);
     }
@@ -71,13 +90,26 @@ pub fn numbers_in(text: &str) -> Vec<f64> {
 
 fn allowed_numbers(c: &TxContext) -> Vec<f64> {
     let mut v = vec![
-        c.value_usd, c.amount, c.related_total_usd,
-        c.from_tx_count_30d as f64, c.count_last_hour as f64, c.prior_tx_count_all as f64,
+        c.value_usd,
+        c.amount,
+        c.related_total_usd,
+        c.from_tx_count_30d as f64,
+        c.count_last_hour as f64,
+        c.prior_tx_count_all as f64,
     ];
-    for o in [c.from_avg_usd_30d, c.multiple_of_from_avg, c.token_avg_usd_30d, c.multiple_of_token_avg] {
-        if let Some(x) = o { v.push(x); }
+    for o in [
+        c.from_avg_usd_30d,
+        c.multiple_of_from_avg,
+        c.token_avg_usd_30d,
+        c.multiple_of_token_avg,
+    ] {
+        if let Some(x) = o {
+            v.push(x);
+        }
     }
-    for r in &c.related_recent { v.push(r.value_usd); }
+    for r in &c.related_recent {
+        v.push(r.value_usd);
+    }
     v.extend(numbers_in(&c.time));
     v
 }
@@ -87,16 +119,26 @@ fn number_ok(n: f64, allowed: &[f64]) -> bool {
         return true;
     }
     allowed.iter().any(|a| {
-        let tol = if a.abs() < 100.0 { 0.51 } else { a.abs() * 0.03 };
+        let tol = if a.abs() < 100.0 {
+            0.51
+        } else {
+            a.abs() * 0.03
+        };
         (n - a).abs() <= tol
     })
 }
 
 pub fn validate_text(text: &str, ctx: &TxContext, max_chars: usize) -> Result<(), String> {
     let t = text.trim();
-    if t.is_empty() { return Err("empty".into()); }
-    if t.chars().count() > max_chars { return Err("too long".into()); }
-    if has_long_token(t) { return Err("contains an address/hash-like token".into()); }
+    if t.is_empty() {
+        return Err("empty".into());
+    }
+    if t.chars().count() > max_chars {
+        return Err("too long".into());
+    }
+    if has_long_token(t) {
+        return Err("contains an address/hash-like token".into());
+    }
 
     let lower = t.to_lowercase();
     for p in FORBIDDEN {
@@ -114,7 +156,6 @@ pub fn validate_text(text: &str, ctx: &TxContext, max_chars: usize) -> Result<()
     Ok(())
 }
 
-/// Extracts citation markers like [3] from text.
 pub fn citations_in(text: &str) -> Vec<usize> {
     let chars: Vec<char> = text.chars().collect();
     let mut out = Vec::new();
@@ -139,7 +180,6 @@ pub fn citations_in(text: &str) -> Vec<usize> {
     out
 }
 
-/// Chat answers: citations must exist, numbers must be grounded, no advice or addresses.
 pub fn validate_chat_text(
     text: &str,
     allowed: &[f64],
@@ -148,9 +188,15 @@ pub fn validate_chat_text(
     max_chars: usize,
 ) -> Result<(), String> {
     let t = text.trim();
-    if t.is_empty() { return Err("empty".into()); }
-    if t.chars().count() > max_chars { return Err("too long".into()); }
-    if has_long_token(t) { return Err("contains an address/hash-like token".into()); }
+    if t.is_empty() {
+        return Err("empty".into());
+    }
+    if t.chars().count() > max_chars {
+        return Err("too long".into());
+    }
+    if has_long_token(t) {
+        return Err("contains an address/hash-like token".into());
+    }
 
     let lower = t.to_lowercase();
     for p in FORBIDDEN {

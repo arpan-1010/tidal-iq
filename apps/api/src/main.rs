@@ -8,7 +8,7 @@ use crate::services::bitcoin::BitcoinService;
 use crate::services::ethereum::EthereumService;
 use crate::services::price::PriceService;
 use crate::services::solana::SolanaService;
-use axum::{http::Method, response::Json, routing::{get, post}, Router};
+use axum::{http::Method, http::header, response::Json, routing::{get, post}, Router};
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
@@ -110,6 +110,7 @@ async fn main() -> anyhow::Result<()> {
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
+        .allow_headers([header::CONTENT_TYPE])
         .allow_origin(Any);
 
     let tx_routes = Router::new()

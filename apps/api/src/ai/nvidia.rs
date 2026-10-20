@@ -304,10 +304,10 @@ impl NvidiaClient {
             .unwrap_or_default();
 
         let reg = ModelRegistry::build(all, &self.cfg);
-        println!(
-            "NVIDIA models: {} available | fast={:?} | strong={:?} | embed={}",
-            reg.all.len(), reg.fast, reg.strong, reg.embed
-        );
+        // println!(
+        //     "NVIDIA models: {} available | fast={:?} | strong={:?} | embed={}",
+        //     reg.all.len(), reg.fast, reg.strong, reg.embed
+        // );
         *self.registry.write().await = reg;
         Ok(())
     }
@@ -395,7 +395,6 @@ impl NvidiaClient {
                 "messages": messages
             });
             if self.cfg.no_think_models.contains(&model) {
-                // vLLM-style switch used by Nemotron 3 models. Verified via /ai/probe below.
                 body["chat_template_kwargs"] = json!({ "enable_thinking": false });
             }
 
@@ -472,8 +471,6 @@ impl NvidiaClient {
         Err(AiError::Unavailable(last_err))
     }
 
-        /// Streaming text generation. Pieces are pushed into `out` as they arrive.
-    /// Falls back to the next model only while nothing has been sent yet.
     pub async fn stream_text(
         &self,
         system: &str,
@@ -496,7 +493,6 @@ impl NvidiaClient {
             self.limiter.acquire().await;
             let started = Instant::now();
 
-            // Gemma rejects the system role, so fold it into the user message.
             let messages = if model.contains("gemma") {
                 json!([{ "role": "user", "content": format!("{system}\n\n{user}") }])
             } else {
@@ -557,7 +553,6 @@ impl NvidiaClient {
                 continue;
             }
 
-            // Read Server-Sent Events: lines like `data: {json}` ending with `data: [DONE]`.
             let mut stream = resp.bytes_stream();
             let mut buf: Vec<u8> = Vec::new();
             let mut full = String::new();
@@ -590,7 +585,7 @@ impl NvidiaClient {
                         if !piece.is_empty() {
                             full.push_str(piece);
                             if out.send(piece.to_string()).await.is_err() {
-                                break 'read; // client went away: stop spending tokens
+                                break 'read;
                             }
                         }
                     }
@@ -609,7 +604,7 @@ impl NvidiaClient {
                 last_err = stream_err.unwrap_or_else(|| format!("empty stream from {model}"));
                 self.log_call(opts.feature, &model, opts.prompt_version, pt, ct, ms,
                     false, Some(&last_err)).await;
-                continue; // nothing was sent to the client yet, so trying the next model is safe
+                continue;
             }
 
             self.log_call(opts.feature, &model, opts.prompt_version, pt, ct, ms,
@@ -688,7 +683,6 @@ impl NvidiaClient {
                 .ok_or_else(|| AiError::Invalid("no embedding".into()))?
                 .iter().filter_map(|x| x.as_f64().map(|f| f as f32)).collect();
 
-            // Fallback: keep the first 1024 numbers and re-normalise (Matryoshka-style).
             if vec.len() > super::EMBED_DIM && self.cfg.embed_truncate {
                 vec.truncate(super::EMBED_DIM);
                 let norm = vec.iter().map(|x| x * x).sum::<f32>().sqrt();

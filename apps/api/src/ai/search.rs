@@ -89,7 +89,6 @@ fn validate(p: ParsedQuery) -> Filters {
     }
 }
 
-/// Non-AI fallback: spot chains, anomalies and time words in the raw text.
 fn heuristic_filters(q: &str) -> Filters {
     let l = q.to_lowercase();
     let words: Vec<&str> = l.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
@@ -144,7 +143,6 @@ struct SearchRow {
 }
 
 impl AiState {
-    /// Natural language search (roadmap 8.4).
     pub async fn search(&self, query: &str, limit: i64) -> Result<Value> {
         let now = Utc::now().naive_utc();
         let mut note: Option<String> = None;
@@ -265,7 +263,7 @@ impl AiState {
 
         Ok(json!({
             "query": query,
-            "filters": filters,          // shown so users can see how the question was interpreted
+            "filters": filters,
             "ai_used": ai_used,
             "semantic": qvec.is_some(),
             "count": results.len(),

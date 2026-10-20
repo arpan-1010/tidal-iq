@@ -1,16 +1,16 @@
 pub mod analyze;
 pub mod budget;
+pub mod chat;
 pub mod context;
+pub mod embed;
+pub mod narrative;
 pub mod nvidia;
+pub mod profile;
 pub mod prompts;
+pub mod ratelimit;
 pub mod safety;
 pub mod scoring;
-pub mod embed;
-pub mod ratelimit;
 pub mod search;
-pub mod chat;
-pub mod profile;
-pub mod narrative;
 
 use crate::db::repository::TransactionRepo;
 use nvidia::NvidiaClient;
@@ -40,7 +40,10 @@ fn env_list(name: &str) -> Vec<String> {
 }
 
 fn env_num<T: std::str::FromStr>(name: &str, default: T) -> T {
-    env::var(name).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+    env::var(name)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
 }
 
 #[derive(Clone, Debug)]
@@ -69,7 +72,9 @@ impl AiConfig {
         if !env_bool("AI_ENABLED", true) {
             return None;
         }
-        let api_key = env::var("NVIDIA_API_KEY").ok().filter(|k| !k.trim().is_empty())?;
+        let api_key = env::var("NVIDIA_API_KEY")
+            .ok()
+            .filter(|k| !k.trim().is_empty())?;
         Some(Self {
             enabled: true,
             api_key,
@@ -90,7 +95,9 @@ impl AiConfig {
             feature_profiles: env_bool("AI_FEATURE_PROFILES", true),
             feature_narratives: env_bool("AI_FEATURE_NARRATIVES", true),
             no_think_models: env_list("AI_NO_THINK_MODELS"),
-            embed_dimensions: env::var("AI_EMBED_DIMENSIONS").ok().and_then(|v| v.parse().ok()),
+            embed_dimensions: env::var("AI_EMBED_DIMENSIONS")
+                .ok()
+                .and_then(|v| v.parse().ok()),
             embed_truncate: env_bool("AI_EMBED_TRUNCATE", false),
         })
     }
@@ -104,7 +111,11 @@ pub struct AiState {
 
 impl AiState {
     pub fn new(repo: Arc<TransactionRepo>, client: Option<Arc<NvidiaClient>>) -> Self {
-        Self { repo, client, limiter: ratelimit::ClientLimiter::new(20) } // 20 AI requests/min per client
+        Self {
+            repo,
+            client,
+            limiter: ratelimit::ClientLimiter::new(20),
+        }
     }
 
     pub fn pool(&self) -> &PgPool {
@@ -112,6 +123,9 @@ impl AiState {
     }
 
     pub fn min_impact(&self) -> f32 {
-        self.client.as_ref().map(|c| c.cfg.min_impact).unwrap_or(40.0)
+        self.client
+            .as_ref()
+            .map(|c| c.cfg.min_impact)
+            .unwrap_or(40.0)
     }
 }

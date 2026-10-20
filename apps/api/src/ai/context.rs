@@ -52,7 +52,6 @@ pub struct TxContext {
 }
 
 pub fn short_addr(a: &str) -> String {
-    // Bitcoin multi-input senders are stored as "addr (+N more)": shorten only the address part.
     let (addr, rest) = match a.split_once(' ') {
         Some((first, rest)) => (first, Some(rest)),
         None => (a, None),

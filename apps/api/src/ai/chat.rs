@@ -8,7 +8,66 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-/// A numbered source the answer can cite. The UI turns [n] into a link.
+const INTRO: &str = "I'm TidalIQ's on-chain analyst. I answer questions about the large Bitcoin, \
+Ethereum and Solana transfers TidalIQ tracks, such as the biggest moves today, unusual transfers, \
+or repeated senders. I don't give trading advice.";
+
+pub const REFUSAL: &str = "Ask me about Whale Transaction related questions only.";
+
+const TOPIC_WORDS: &[&str] = &[
+    "btc", "bitcoin", "eth", "ethereum", "ether", "sol", "solana", "crypto", "onchain", "chain",
+    "token", "tokens", "coin", "coins", "usdt", "usdc", "stablecoin", "transfer", "transfers",
+    "transaction", "transactions", "tx", "txs", "wallet", "wallets", "address", "addresses",
+    "whale", "whales", "sender", "senders", "receiver", "recipient", "exchange", "volume",
+    "usd", "dollar", "dollars", "million", "billion", "unusual", "anomaly", "anomalies",
+    "flagged", "flag", "flags", "repeated", "repeat", "largest", "biggest", "big", "large",
+    "moves", "move", "moved", "sent", "send", "flow", "flows", "activity", "score", "impact",
+    "today", "yesterday", "week", "month", "hour", "hours", "days", "narrative", "digest",
+];
+
+const FOLLOW_UP_WORDS: &[&str] = &[
+    "more", "why", "how", "explain", "details", "detail", "and", "also", "those", "that",
+    "them", "these", "same", "other", "another", "else", "previous", "earlier", "compare",
+];
+
+fn words(s: &str) -> Vec<String> {
+    s.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(String::from)
+        .collect()
+}
+
+fn is_amount(w: &str) -> bool {
+    match w.char_indices().last() {
+        Some((i, c)) if matches!(c, 'k' | 'm' | 'b') && i > 0 => w[..i].chars().all(|d| d.is_ascii_digit()),
+        _ => false,
+    }
+}
+
+pub fn off_topic_reply(message: &str, first_turn: bool) -> Option<&'static str> {
+    let ws = words(message);
+    let has = |list: &[&str]| ws.iter().any(|w| list.contains(&w.as_str()));
+
+    let on_topic = message.contains('$') || ws.iter().any(|w| is_amount(w)) || has(TOPIC_WORDS);
+    if on_topic {
+        return None;
+    }
+
+    let smalltalk = has(&["hello", "hi", "hey", "thanks", "thank", "yourself", "bye"])
+        || (has(&["who", "what"]) && has(&["you", "your"]));
+    if smalltalk {
+        return Some(INTRO);
+    }
+
+    let follow_up = !first_turn && ws.len() <= 6 && has(FOLLOW_UP_WORDS);
+    if follow_up {
+        return None;
+    }
+
+    Some(REFUSAL)
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Citation {
     pub n: usize,
@@ -26,21 +85,22 @@ pub struct ChatAnswer {
     pub session_id: String,
     pub message_id: i64,
     pub text: String,
-    pub citations: Vec<Citation>, // only the ones the answer actually cites
-    pub source: String,           // "llm" | "template" | "cache"
+    pub citations: Vec<Citation>,
+    pub source: String,
     pub model: Option<String>,
     pub disclaimer: &'static str,
 }
 
 pub struct ChatPlan {
     pub session_id: Uuid,
-    pub citations: Vec<Citation>, // everything retrieved, numbered from 1
+    pub citations: Vec<Citation>,
     pub user_prompt: String,
     pub allowed: Vec<f64>,
     pub cached: Option<Value>,
     pub question: String,
     pub qvec: Option<String>,
     pub first_turn: bool,
+    pub canned: Option<String>,
 }
 
 fn fallback_text(plan: &ChatPlan) -> String {
@@ -94,11 +154,9 @@ impl AiState {
         Ok(id)
     }
 
-    /// Session, memory, retrieval, cache lookup and prompt assembly.
     pub async fn prepare_chat(&self, session: Option<&str>, message: &str) -> Result<ChatPlan> {
         let pool = self.pool();
 
-        // 1. Session (create if missing or unknown)
         let session_id = match session.and_then(|s| Uuid::parse_str(s).ok()) {
             Some(id) => {
                 let ok: Option<(i32,)> = sqlx::query_as("SELECT 1 FROM chat_sessions WHERE id = $1")
@@ -110,7 +168,6 @@ impl AiState {
             None => self.new_session().await?,
         };
 
-        // 2. Short-term memory: last 6 messages
         let history: Vec<(String, String)> = sqlx::query_as(
             "SELECT role, content FROM (
                  SELECT id, role, content FROM chat_messages
@@ -128,10 +185,23 @@ impl AiState {
             .execute(pool)
             .await?;
 
-        // 3. Retrieval and cache embedding, in parallel
+                if let Some(reply) = off_topic_reply(message, first_turn) {
+            return Ok(ChatPlan {
+                session_id,
+                citations: vec![],
+                user_prompt: String::new(),
+                allowed: vec![],
+                cached: None,
+                question: message.to_string(),
+                qvec: None,
+                first_turn,
+                canned: Some(reply.to_string()),
+            });
+        }
+
         let cache_embed = async {
             if !first_turn {
-                return None::<String>; // follow-ups depend on history, so never cached
+                return None::<String>;
             }
             let c = self.client.as_ref()?;
             let mut v = c.embed(&[message.to_string()], "query").await.ok()?;
@@ -143,7 +213,6 @@ impl AiState {
         let (qvec, search_res) = tokio::join!(cache_embed, self.search(message, 8));
         let search_val = search_res?;
 
-        // 4. Semantic cache lookup (similarity > 0.95, newer than 10 minutes)
         let mut cached: Option<Value> = None;
         if let Some(v) = &qvec {
             let hit: Option<(Value, f64)> = sqlx::query_as(
@@ -162,7 +231,6 @@ impl AiState {
             }
         }
 
-        // 5. Numbered sources
         let results = search_val["results"].as_array().cloned().unwrap_or_default();
         let citations: Vec<Citation> = results
             .iter()
@@ -179,7 +247,6 @@ impl AiState {
             })
             .collect();
 
-        // 6. Fact sheet for totals questions
         let stats: Vec<(String, i64, f64, f64)> = sqlx::query_as(
             "SELECT chain, COUNT(*), COALESCE(SUM(value_usd), 0)::float8,
                     COALESCE(MAX(value_usd), 0)::float8
@@ -231,7 +298,6 @@ impl AiState {
             serde_json::to_string(&data)?
         );
 
-        // 7. Numbers the answer is allowed to use
         let mut allowed: Vec<f64> = vec![results.len() as f64];
         let mut sum = 0.0;
         for c in &citations {
@@ -269,6 +335,7 @@ impl AiState {
             question: message.to_string(),
             qvec,
             first_turn,
+            canned: None
         })
     }
 
@@ -287,9 +354,24 @@ impl AiState {
         })
     }
 
-    /// Validate the model's text (or fall back), save it, and cache good answers.
-    pub async fn finish_chat(&self, plan: &ChatPlan, raw: Option<(String, String)>) -> Result<ChatAnswer> {
+        pub async fn answer_canned(&self, plan: &ChatPlan, text: &str) -> Result<ChatAnswer> {
+        let id = self.save_assistant(plan.session_id, text, &[]).await?;
+        Ok(ChatAnswer {
+            session_id: plan.session_id.to_string(),
+            message_id: id,
+            text: text.to_string(),
+            citations: vec![],
+            source: "template".into(),
+            model: None,
+            disclaimer: DISCLAIMER,
+        })
+    }
+
+        pub async fn finish_chat(&self, plan: &ChatPlan, raw: Option<(String, String)>) -> Result<ChatAnswer> {
         let (text, source, model) = match raw {
+            Some((text, _)) if text.trim().trim_matches('"') == REFUSAL => {
+                (REFUSAL.to_string(), "template", None)
+            }
             Some((text, model)) => {
                 match validate_chat_text(&text, &plan.allowed, plan.citations.len(), !plan.citations.is_empty(), 900) {
                     Ok(()) => (text.trim().to_string(), "llm", Some(model)),
@@ -333,9 +415,11 @@ impl AiState {
         })
     }
 
-    /// Non-streaming chat (roadmap 9.3).
     pub async fn chat(&self, session: Option<&str>, message: &str) -> Result<ChatAnswer> {
         let plan = self.prepare_chat(session, message).await?;
+                if let Some(text) = &plan.canned {
+            return self.answer_canned(&plan, text).await;
+        }
         if let Some(ans) = &plan.cached {
             return self.answer_from_cache(&plan, ans).await;
         }

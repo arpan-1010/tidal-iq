@@ -314,7 +314,8 @@ impl AiState {
         for (hash,) in rows {
             match self.analyze_tx(&hash, false).await? {
                 Outcome::Fallback(_) => return Ok(false),
-                _ => println!("AI analysis saved for {}...", short_hash(&hash)),
+                //_ => println!("AI analysis saved for {}...", short_hash(&hash)),
+                _ => {}
             }
         }
         Ok(true)

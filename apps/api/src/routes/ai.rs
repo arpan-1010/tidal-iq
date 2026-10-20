@@ -123,7 +123,6 @@ pub struct ProbeQuery {
     pub timeout: Option<u64>,
 }
 
-/// GET /ai/probe?models=a/b,c/d&nothink=true&max_tokens=300&timeout=60
 pub async fn probe(
     State(ai): State<Arc<AiState>>,
     Query(q): Query<ProbeQuery>,
@@ -178,7 +177,6 @@ const EMBED_SHORTLIST: &[&str] = &[
     "nvidia/nv-embedqa-mistral-7b-v2",
 ];
 
-/// GET /ai/probe-embed, or ?models=a/b,c/d&timeout=30
 pub async fn probe_embed(
     State(ai): State<Arc<AiState>>,
     Query(q): Query<ProbeEmbedQuery>,
@@ -221,6 +219,33 @@ async fn do_search(
     if !ai.limiter.allow(&client_key(headers)) {
         return Err(StatusCode::TOO_MANY_REQUESTS);
     }
+        if !ai.limiter.allow(&client_key(headers)) {
+        return Err(StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    if crate::ai::chat::off_topic_reply(q, true).is_some() {
+        return Ok(Json(json!({
+            "query": q,
+            "count": 0,
+            "ai_used": false,
+            "semantic": false,
+            "filters": {
+                "anomaly_only": false,
+                "chains": null,
+                "flags": null,
+                "max_usd": null,
+                "min_usd": null,
+                "period": null,
+                "semantic_text": null,
+                "symbols": null
+            },
+            "results": [],
+            "available_tokens": null,
+            "note": "Not found",
+            "disclaimer": DISCLAIMER,
+        })));
+    }
+
     ai.search(q, limit.unwrap_or(10).clamp(1, 50))
         .await
         .map(Json)
@@ -230,7 +255,6 @@ async fn do_search(
         })
 }
 
-/// POST /ai/search  { "query": "...", "limit": 10 }
 pub async fn search_post(
     State(ai): State<Arc<AiState>>,
     headers: HeaderMap,
@@ -239,7 +263,6 @@ pub async fn search_post(
     do_search(&ai, &headers, &req.query, req.limit).await
 }
 
-/// GET /ai/search?q=...  (handy for testing in the browser)
 pub async fn search_get(
     State(ai): State<Arc<AiState>>,
     headers: HeaderMap,
@@ -261,7 +284,7 @@ fn chat_gate(ai: &Arc<AiState>, headers: &HeaderMap, message: &str) -> Result<()
     }
     match &ai.client {
         Some(c) if c.cfg.feature_chat => {}
-        _ => return Err(StatusCode::SERVICE_UNAVAILABLE), // chat is off or AI is disabled
+        _ => return Err(StatusCode::SERVICE_UNAVAILABLE),
     }
     if !ai.limiter.allow(&client_key(headers)) {
         return Err(StatusCode::TOO_MANY_REQUESTS);
@@ -269,7 +292,6 @@ fn chat_gate(ai: &Arc<AiState>, headers: &HeaderMap, message: &str) -> Result<()
     Ok(())
 }
 
-/// POST /ai/chat  { "session_id": "<uuid, optional>", "message": "..." }
 pub async fn chat_post(
     State(ai): State<Arc<AiState>>,
     headers: HeaderMap,
@@ -290,11 +312,6 @@ async fn emit(tx: &mpsc::Sender<Result<Event, Infallible>>, name: &str, data: Va
     let _ = tx.send(Ok(Event::default().event(name).data(data.to_string()))).await;
 }
 
-/// POST /ai/chat/stream  — same body as /ai/chat, answered as Server-Sent Events:
-///   event: meta   {session_id, sources:[{n, chain, token, value_usd, time, explorer_url}]}
-///   event: token  {"t":"..."}            (many)
-///   event: done   {full ChatAnswer}      (validated text replaces what was streamed)
-///   event: error  {"message":"..."}
 pub async fn chat_stream(
     State(ai): State<Arc<AiState>>,
     headers: HeaderMap,
@@ -322,7 +339,18 @@ pub async fn chat_stream(
         })).collect();
         emit(&tx, "meta", json!({ "session_id": plan.session_id.to_string(), "sources": sources })).await;
 
-        // Cache hit: send the whole text as one piece, then done.
+                if let Some(text) = &plan.canned {
+            emit(&tx, "token", json!({ "t": text })).await;
+            match ai.answer_canned(&plan, text).await {
+                Ok(ans) => emit(&tx, "done", json!(ans)).await,
+                Err(e) => {
+                    eprintln!("chat canned answer failed: {e}");
+                    emit(&tx, "error", json!({ "message": "Something went wrong. Please try again." })).await;
+                }
+            }
+            return;
+        }
+
         if let Some(cached) = &plan.cached {
             if let Some(t) = cached["text"].as_str() {
                 emit(&tx, "token", json!({ "t": t })).await;
@@ -337,7 +365,6 @@ pub async fn chat_stream(
             return;
         }
 
-        // Live generation: forward model pieces to the browser as they arrive.
         let raw = match ai.client.clone() {
             Some(client) => {
                 let (tok_tx, mut tok_rx) = mpsc::channel::<String>(64);
@@ -348,7 +375,6 @@ pub async fn chat_stream(
                 let prompt = plan.user_prompt.clone();
 
                 let gen = async {
-                    // tok_tx is moved in and dropped when generation ends, which ends the forward loop.
                     client.stream_text(system, &prompt, &opts, tok_tx).await
                 };
                 let forward = async {
@@ -380,8 +406,6 @@ pub async fn chat_stream(
     Ok(Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::default()))
 }
 
-/// GET /ai/wallets/{chain}/{address}
-/// Use the chain value exactly as it appears in your transactions table (same as /ai/search output).
 pub async fn wallet_profile(
     State(ai): State<Arc<AiState>>,
     headers: HeaderMap,
@@ -416,7 +440,6 @@ pub struct FeedbackReq {
     pub comment: Option<String>,
 }
 
-/// POST /ai/feedback  { "kind": "summary|chat|search|narrative", "ref": "...", "helpful": true, "comment": "..." }
 pub async fn feedback(
     State(ai): State<Arc<AiState>>,
     headers: HeaderMap,
@@ -466,7 +489,6 @@ async fn narrative_inner(ai: Arc<AiState>, headers: HeaderMap, hours: i32) -> Re
     }
 }
 
-/// GET /ai/narrative?hours=6   (1–48)
 pub async fn narrative_get(
     State(ai): State<Arc<AiState>>,
     headers: HeaderMap,
@@ -475,7 +497,6 @@ pub async fn narrative_get(
     narrative_inner(ai, headers, q.hours.unwrap_or(6)).await
 }
 
-/// GET /ai/digest   (the 24-hour narrative)
 pub async fn digest_get(
     State(ai): State<Arc<AiState>>,
     headers: HeaderMap,

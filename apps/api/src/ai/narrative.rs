@@ -42,9 +42,9 @@ pub struct NarrativeOut {
     pub id: Option<i64>,
     pub window_hours: i32,
     pub text: String,
-    pub citations: Vec<Citation>, // only the ones the text cites
-    pub stats: Vec<Value>,        // per-chain totals for the window
-    pub source: String,           // "llm" | "template" | "cache"
+    pub citations: Vec<Citation>,
+    pub stats: Vec<Value>,
+    pub source: String,
     pub model: Option<String>,
     pub created_at: Option<String>,
     pub disclaimer: &'static str,
@@ -74,12 +74,10 @@ fn cited_from(all: &[Option<Citation>], text: &str) -> Vec<Citation> {
 }
 
 impl AiState {
-    /// Multi-transaction narrative for the last `hours` hours (roadmap 9.2).
     pub async fn narrative(&self, hours: i32) -> Result<Option<NarrativeOut>> {
         let hours = hours.clamp(1, 48);
         let pool = self.pool();
 
-        // 1. Per-chain totals for the window
         let chain_rows: Vec<(String, i64, f64, f64)> = sqlx::query_as(
             "SELECT chain, COUNT(*), COALESCE(SUM(value_usd), 0)::float8, COALESCE(MAX(value_usd), 0)::float8
              FROM transactions
@@ -97,7 +95,6 @@ impl AiState {
             .map(|(c, n, total, big)| json!({ "chain": c, "count": n, "total_usd": total.round(), "largest_usd": big.round() }))
             .collect();
 
-        // 2. Fresh cached narrative? (30 minutes)
         let cached: Option<(i64, String, Vec<String>, Option<String>, String)> = sqlx::query_as(
             "SELECT id, narrative, tx_hashes, model, created_at::text FROM narratives
              WHERE window_hours = $1 AND created_at > now() - interval '30 minutes'
@@ -130,7 +127,6 @@ impl AiState {
             }));
         }
 
-        // 3. Facts: the 12 largest transactions + repeat senders
         let rows: Vec<TxRow> = sqlx::query_as(tx_select!(
             "WHERE t.tx_timestamp > (now() at time zone 'utc') - make_interval(hours => $1)
              ORDER BY t.value_usd DESC NULLS LAST LIMIT 12"
@@ -199,7 +195,6 @@ impl AiState {
         let mut allowed = numbers_in(&data_str);
         allowed.push(rows.len() as f64);
 
-        // 4. Model writes it, validation decides if it ships
         let all: Vec<Option<Citation>> = rows.iter().enumerate().map(|(i, r)| Some(cite(i + 1, r))).collect();
         let mut text = String::new();
         let mut source = "template";
@@ -239,7 +234,6 @@ impl AiState {
             }
         }
 
-        // 5. Store (model-written only)
         let (mut id, mut created) = (None, None);
         if source == "llm" {
             let hashes: Vec<String> = rows.iter().map(|r| r.hash.clone()).collect();
@@ -272,8 +266,6 @@ impl AiState {
         }))
     }
 
-    /// Daily digest to Telegram (roadmap 9.4). Does nothing unless
-    /// TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set.
     pub async fn run_digest_worker(self: Arc<Self>) {
         let (Ok(token), Ok(chat_id)) = (std::env::var("TELEGRAM_BOT_TOKEN"), std::env::var("TELEGRAM_CHAT_ID")) else {
             return;
@@ -281,7 +273,7 @@ impl AiState {
         let hour: u32 = std::env::var("AI_DIGEST_HOUR_UTC").ok().and_then(|v| v.parse().ok()).unwrap_or(3);
         let http = reqwest::Client::new();
         let mut last_sent: Option<chrono::NaiveDate> = None;
-        eprintln!("digest worker: sending daily at {hour:02}:00 UTC");
+        //println!("digest worker: sending daily at {hour:02}:00 UTC");
 
         loop {
             tokio::time::sleep(Duration::from_secs(600)).await;
@@ -291,7 +283,7 @@ impl AiState {
             }
             let out = match self.narrative(24).await {
                 Ok(Some(n)) if n.source != "template" => n,
-                Ok(_) => continue, // nothing worth sending; retry in 10 minutes
+                Ok(_) => continue,
                 Err(e) => {
                     eprintln!("digest failed: {e}");
                     continue;

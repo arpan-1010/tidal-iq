@@ -14,7 +14,10 @@ export async function streamChat(
     signal,
   });
   if (!res.ok || !res.body) {
-    onEvent({ event: "error", data: { message: `Request failed (${res.status})` } });
+    onEvent({
+      event: "error",
+      data: { message: `Request failed (${res.status})` },
+    });
     return;
   }
 
@@ -27,7 +30,6 @@ export async function streamChat(
     if (done) break;
     buf += decoder.decode(value, { stream: true });
 
-    // SSE frames are separated by a blank line
     let idx: number;
     while ((idx = buf.indexOf("\n\n")) !== -1) {
       const frame = buf.slice(0, idx);
@@ -39,7 +41,7 @@ export async function streamChat(
         if (line.startsWith("event:")) event = line.slice(6).trim();
         else if (line.startsWith("data:")) data += line.slice(5).trim();
       }
-      if (!data) continue; // keep-alive comments
+      if (!data) continue;
       try {
         onEvent({ event, data: JSON.parse(data) } as ChatStreamEvent);
       } catch {

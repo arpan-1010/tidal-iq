@@ -102,11 +102,11 @@ impl BitcoinService {
         let block = self.rpc("getblock", json!([hash, 3])).await?;
 
         let transfers = extract_transfers(&block);
-        println!(
-            "BTC block {} - {} txs",
-            height,
-            block["tx"].as_array().map(|t| t.len()).unwrap_or(0)
-        );
+        // println!(
+        //     "BTC block {} - {} txs",
+        //     height,
+        //     block["tx"].as_array().map(|t| t.len()).unwrap_or(0)
+        // );
         if transfers.is_empty() {
             return Ok(());
         }
@@ -121,7 +121,7 @@ impl BitcoinService {
             if value_usd < self.threshold_usd {
                 continue;
             }
-            println!("BTC transfer: ${:.2}", value_usd);
+            //println!("BTC transfer: ${:.2}", value_usd);
 
             let new_tx = NewTransaction {
                 hash: t.txid,
@@ -147,7 +147,8 @@ impl BitcoinService {
             Err(e) => { eprintln!("DB check error: {}", e); return; }
         }
         match self.repo.create(tx).await {
-            Ok(_) => eprintln!("Saved: {} ${:.2} | {}...", tx.token_symbol, tx.value_usd, &tx.hash[..10]),
+            Ok(_) => {}
+            //Ok(_) => eprintln!("Saved: {} ${:.2} | {}...", tx.token_symbol, tx.value_usd, &tx.hash[..10]),
             Err(e) => eprintln!("DB insert error: {}", e),
         }
     }

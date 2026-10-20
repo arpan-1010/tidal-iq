@@ -22,7 +22,6 @@ struct DocRow {
     tx_timestamp: NaiveDateTime,
 }
 
-/// pgvector accepts '[0.1,0.2,...]' text, so no extra crate is needed.
 pub fn vec_literal(v: &[f32]) -> String {
     let mut s = String::with_capacity(v.len() * 10 + 2);
     s.push('[');
@@ -36,7 +35,6 @@ pub fn vec_literal(v: &[f32]) -> String {
     s
 }
 
-/// The text that gets embedded: facts first, then the AI summary.
 fn doc_text(r: &DocRow) -> String {
     let flags: Vec<&str> = r
         .anomaly_flags
@@ -59,7 +57,6 @@ fn doc_text(r: &DocRow) -> String {
 }
 
 impl AiState {
-    /// Some(n) = n rows embedded (0 = nothing to do). None = embedding unavailable right now.
     async fn embed_batch(&self) -> Result<Option<usize>> {
         let Some(client) = &self.client else { return Ok(None) };
 
@@ -83,7 +80,7 @@ impl AiState {
         let texts: Vec<String> = rows.iter().map(doc_text).collect();
         let vectors = match client.embed(&texts, "passage").await {
             Ok(v) => v,
-            Err(AiError::Invalid(m)) => anyhow::bail!(m), // e.g. wrong dimension: needs a human
+            Err(AiError::Invalid(m)) => anyhow::bail!(m),
             Err(e) => {
                 eprintln!("embedder paused: {e}");
                 return Ok(None);
@@ -115,10 +112,10 @@ impl AiState {
             let wait = match self.embed_batch().await {
                 Ok(Some(0)) => 60,
                 Ok(Some(n)) => {
-                    println!("Embedded {n} transactions");
+                    //println!("Embedded {n} transactions");
                     5
                 }
-                Ok(None) => 300, // degraded: budget or outage
+                Ok(None) => 300,
                 Err(e) => {
                     eprintln!("embedder error: {e}");
                     120

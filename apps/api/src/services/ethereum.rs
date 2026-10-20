@@ -93,7 +93,7 @@ impl EthereumService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Block {} not found", block_number))?;
 
-        println!("Block {} - {} txs", block_number, block.transactions.len());
+        //println!("Block {} - {} txs", block_number, block.transactions.len());
 
         let dt = DateTime::from_timestamp(block.header.timestamp as i64, 0)
             .unwrap_or_default()
@@ -109,7 +109,7 @@ impl EthereumService {
                 let value_usd = (value as f64 / 1e18) * eth_price;
                 if value_usd < self.threshold_usd { continue; }
 
-                println!("ETH transfer: ${:.2}", value_usd);
+                //println!("ETH transfer: ${:.2}", value_usd);
 
                 let new_tx = NewTransaction {
                     hash: tx.inner.tx_hash().to_string(),
@@ -138,10 +138,10 @@ impl EthereumService {
         }
 
         match self.repo.create(tx).await {
-            Ok(_id) => eprintln!(
-                "Saved: {} ${:.2} | {}...",
-                tx.token_symbol, tx.value_usd, &tx.hash[..10] 
-            ),
+            Ok(_id) => {} // eprintln!(
+            //     "Saved: {} ${:.2} | {}...",
+            //     tx.token_symbol, tx.value_usd, &tx.hash[..10] 
+            // ),
             Err(e) => eprintln!("DB insert error: {}", e),
         }
     }

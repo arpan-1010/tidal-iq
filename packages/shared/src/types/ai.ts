@@ -32,7 +32,7 @@ export interface ChatAnswer {
   session_id: string;
   message_id: number;
   text: string;
-  citations: Citation[]; // only the ones the text actually cites
+  citations: Citation[];
   source: AnswerSource;
   model: string | null;
   disclaimer: string;
@@ -75,30 +75,39 @@ export interface Narrative {
   window_hours: number;
   text: string;
   citations: Citation[];
-  stats: { chain: string; count: number; total_usd: number; largest_usd: number }[];
+  stats: {
+    chain: string;
+    count: number;
+    total_usd: number;
+    largest_usd: number;
+  }[];
   source: AnswerSource;
   model: string | null;
   created_at: string | null;
   disclaimer: string;
 }
 
-export type FeedbackKind = "summary" | "chat" | "search" | "narrative" | "profile";
+export type FeedbackKind =
+  | "summary"
+  | "chat"
+  | "search"
+  | "narrative"
+  | "profile";
 
 export interface FeedbackRequest {
   kind: FeedbackKind;
-  ref: string; // tx hash, chat message_id, narrative id...
+  ref: string;
   helpful: boolean;
   comment?: string;
 }
 
-/** Streaming chat: the UI shows tokens live, then replaces them with done.text. */
 export type ChatStreamEvent =
   | { event: "meta"; data: { session_id: string; sources: ChatSource[] } }
   | { event: "token"; data: { t: string } }
   | { event: "done"; data: ChatAnswer }
   | { event: "error"; data: { message: string } };
 
-  export type ImportanceTier = "Low" | "Medium" | "High" | "Critical";
+export type ImportanceTier = "Low" | "Medium" | "High" | "Critical";
 
 export type AnomalyFlagCode =
   | "UNUSUAL_SIZE"
@@ -106,16 +115,13 @@ export type AnomalyFlagCode =
   | "RAPID_SUCCESSION"
   | "TOKEN_OUTLIER";
 
-/** GET /ai/transactions/{hash} -> response.data */
 export interface AISummary {
   tx_hash: string;
   summary: string;
   importance_score: number;
   importance_tier: ImportanceTier;
   importance_reason: string | null;
-  // Only `code` is confirmed from real output (the array was empty in the sample).
-  // Extra fields on a flag are allowed, so check one real flagged example later.
-  anomaly_flags: ({ code: AnomalyFlagCode } & Record<string, unknown>)[];
+  anomaly_flags: { code: AnomalyFlagCode; detail: string }[];
   anomaly_note: string | null;
   source: "llm" | "template";
   model: string | null;
@@ -130,7 +136,7 @@ export interface SearchFilters {
   flags: AnomalyFlagCode[] | null;
   max_usd: number | null;
   min_usd: number | null;
-  period: string | null; // "today", "yesterday", "this week", ...
+  period: string | null;
   semantic_text: string | null;
   symbols: string[] | null;
 }
@@ -139,19 +145,18 @@ export interface SearchResult {
   chain: string;
   token: string;
   hash: string;
-  from: string; // shortened address, e.g. "bc1quh…8l2d"
+  from: string;
   to: string;
   value_usd: number | null;
-  time: string; // "2026-10-19 05:44 UTC"
+  time: string;
   summary: string | null;
   summary_pending: boolean;
   importance_score: number | null;
   importance_tier: ImportanceTier | null;
-  similarity: number | null; // set only when semantic ranking was used
+  similarity: number | null;
   explorer_url: string;
 }
 
-/** GET /ai/search?q=... (response body, not wrapped in `data`) */
 export interface SearchResponse {
   query: string;
   count: number;
@@ -159,7 +164,7 @@ export interface SearchResponse {
   semantic: boolean;
   filters: SearchFilters;
   results: SearchResult[];
-  available_tokens: string[] | null; // set when a requested token isn't tracked
+  available_tokens: string[] | null;
   note: string | null;
   disclaimer: string;
 }

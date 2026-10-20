@@ -15,10 +15,15 @@ pub struct RuleScore {
 }
 
 pub fn tier_for(score: f32) -> &'static str {
-    if score < 25.0 { "Low" }
-    else if score < 50.0 { "Medium" }
-    else if score < 75.0 { "High" }
-    else { "Critical" }
+    if score < 25.0 {
+        "Low"
+    } else if score < 50.0 {
+        "Medium"
+    } else if score < 75.0 {
+        "High"
+    } else {
+        "Critical"
+    }
 }
 
 pub fn detect_flags(c: &TxContext) -> Vec<Flag> {
@@ -29,7 +34,9 @@ pub fn detect_flags(c: &TxContext) -> Vec<Flag> {
             flags.push(Flag {
                 code: "UNUSUAL_SIZE",
                 detail: format!(
-                    "{:.1}x this wallet's 30-day average transfer ({})", m, fmt_usd(avg)
+                    "{:.1}x this wallet's 30-day average transfer ({})",
+                    m,
+                    fmt_usd(avg)
                 ),
             });
         }
@@ -46,7 +53,8 @@ pub fn detect_flags(c: &TxContext) -> Vec<Flag> {
         flags.push(Flag {
             code: "RAPID_SUCCESSION",
             detail: format!(
-                "{} large transfers from this address within one hour", c.count_last_hour
+                "{} large transfers from this address within one hour",
+                c.count_last_hour
             ),
         });
     }
@@ -75,14 +83,26 @@ pub fn rule_score(c: &TxContext, flags: &[Flag]) -> RuleScore {
     factors.push(format!("size {} -> {:.0} pts", fmt_usd(c.value_usd), score));
 
     if let Some(m) = c.multiple_of_from_avg {
-        let pts = if m >= 5.0 { 15.0 } else if m >= 2.0 { 7.0 } else { 0.0 };
+        let pts = if m >= 5.0 {
+            15.0
+        } else if m >= 2.0 {
+            7.0
+        } else {
+            0.0
+        };
         if pts > 0.0 {
             score += pts;
             factors.push(format!("{:.1}x sender average -> +{:.0}", m, pts));
         }
     }
     if let Some(m) = c.multiple_of_token_avg {
-        let pts = if m >= 5.0 { 10.0 } else if m >= 2.0 { 4.0 } else { 0.0 };
+        let pts = if m >= 5.0 {
+            10.0
+        } else if m >= 2.0 {
+            4.0
+        } else {
+            0.0
+        };
         if pts > 0.0 {
             score += pts;
             factors.push(format!("{:.1}x token average -> +{:.0}", m, pts));
@@ -103,5 +123,9 @@ pub fn rule_score(c: &TxContext, flags: &[Flag]) -> RuleScore {
     }
 
     let score = score.clamp(0.0, 100.0);
-    RuleScore { score, tier: tier_for(score), factors }
+    RuleScore {
+        score,
+        tier: tier_for(score),
+        factors,
+    }
 }

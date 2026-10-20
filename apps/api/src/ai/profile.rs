@@ -13,7 +13,7 @@ pub struct WalletProfile {
     pub label: Option<String>,
     pub profile: String,
     pub stats: Value,
-    pub source: String, // "llm" | "template" | "cache"
+    pub source: String,
     pub model: Option<String>,
     pub updated_at: Option<String>,
     pub disclaimer: &'static str,
@@ -35,11 +35,9 @@ fn template_profile(label: &Option<String>, addr: &str, stats: &Value) -> String
 }
 
 impl AiState {
-    /// GET /ai/wallets/{chain}/{address}  (roadmap 9.1)
     pub async fn wallet_profile(&self, chain: &str, address: &str) -> Result<Option<WalletProfile>> {
         let pool = self.pool();
 
-        // 1. Fresh cached profile?
         let cached: Option<(String, Value, Option<String>, String)> = sqlx::query_as(
             "SELECT profile, stats, model, updated_at::text FROM wallet_profiles
              WHERE chain = $1 AND address = $2 AND updated_at > now() - interval '6 hours'",
@@ -70,8 +68,7 @@ impl AiState {
                 disclaimer: DISCLAIMER,
             }));
         }
-
-        // 2. Facts, all computed in SQL
+        
         let sent: (i64, f64, f64, f64, i64, Option<String>, Option<String>) = sqlx::query_as(
             "SELECT COUNT(*),
                     COALESCE(SUM(value_usd), 0)::float8,
@@ -97,7 +94,7 @@ impl AiState {
         .await?;
 
         if sent.0 == 0 && recv.0 == 0 {
-            return Ok(None); // wallet not in tracked data
+            return Ok(None);
         }
 
         let tokens: Vec<(String, i64, f64)> = sqlx::query_as(
@@ -123,7 +120,6 @@ impl AiState {
             "top_tokens": tokens.iter().map(|(t, n, v)| json!({ "token": t, "count": n, "total_usd": v.round() })).collect::<Vec<_>>(),
         });
 
-        // 3. Model writes the description (label comes only from wallet_labels)
         let facts = json!({
             "chain": chain,
             "label": label_text,
@@ -155,7 +151,6 @@ impl AiState {
             }
         }
 
-        // 4. Store (only model-written profiles are cached for 6 hours)
         let mut updated: Option<String> = None;
         if source == "llm" {
             let row: Option<(String,)> = sqlx::query_as(
@@ -190,7 +185,6 @@ impl AiState {
         }))
     }
 
-    /// POST /ai/feedback  (roadmap 10.3)
     pub async fn save_feedback(&self, kind: &str, reference: &str, helpful: bool, comment: Option<&str>) -> Result<()> {
         sqlx::query("INSERT INTO ai_feedback (kind, ref, helpful, comment) VALUES ($1, $2, $3, $4)")
             .bind(kind)

@@ -119,7 +119,7 @@ impl SolanaService {
             .await?;
 
         let transfers = extract_transfers(&block);
-        println!("Slot {} - {} SOL transfers", slot, transfers.len());
+        //println!("Slot {} - {} SOL transfers", slot, transfers.len());
         if transfers.is_empty() {
             return Ok(());
         }
@@ -134,7 +134,7 @@ impl SolanaService {
             if value_usd < self.threshold_usd {
                 continue;
             }
-            println!("SOL transfer: ${:.2}", value_usd);
+            //println!("SOL transfer: ${:.2}", value_usd);
 
             let new_tx = NewTransaction {
                 hash: t.signature,
@@ -160,7 +160,8 @@ impl SolanaService {
             Err(e) => { eprintln!("DB check error: {}", e); return; }
         }
         match self.repo.create(tx).await {
-            Ok(_) => eprintln!("Saved: {} ${:.2} | {}...", tx.token_symbol, tx.value_usd, &tx.hash[..10]),
+            Ok(_) => {}
+            //Ok(_) => eprintln!("Saved: {} ${:.2} | {}...", tx.token_symbol, tx.value_usd, &tx.hash[..10]),
             Err(e) => eprintln!("DB insert error: {}", e),
         }
     }
@@ -171,7 +172,7 @@ fn extract_transfers(block: &Value) -> Vec<Transfer> {
     let Some(txs) = block["transactions"].as_array() else { return out };
 
     for tx in txs {
-        if !tx["meta"]["err"].is_null() { continue; } // failed tx
+        if !tx["meta"]["err"].is_null() { continue; }
         let Some(signature) = tx["transaction"]["signatures"][0].as_str() else { continue };
         let Some(instructions) = tx["transaction"]["message"]["instructions"].as_array() else { continue };
 

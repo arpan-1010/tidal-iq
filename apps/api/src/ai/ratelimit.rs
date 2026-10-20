@@ -9,10 +9,12 @@ pub struct ClientLimiter {
 
 impl ClientLimiter {
     pub fn new(max_per_min: u32) -> Self {
-        Self { inner: Mutex::new(HashMap::new()), max_per_min }
+        Self {
+            inner: Mutex::new(HashMap::new()),
+            max_per_min,
+        }
     }
 
-    /// true = allowed. Fixed one-minute window per client key.
     pub fn allow(&self, key: &str) -> bool {
         let mut m = self.inner.lock().unwrap();
         let now = Instant::now();
@@ -28,8 +30,6 @@ impl ClientLimiter {
     }
 }
 
-/// Identify the caller. X-Forwarded-For is only trustworthy behind your own proxy
-/// (Railway/Render/Fly set it). Locally everyone is "local".
 pub fn client_key(headers: &axum::http::HeaderMap) -> String {
     headers
         .get("x-forwarded-for")
