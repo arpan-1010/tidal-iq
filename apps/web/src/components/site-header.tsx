@@ -39,8 +39,8 @@ export function SiteHeader() {
   }, []);
 
   return (
-    <header className="pointer-events-none sticky top-4 z-40 flex justify-center px-4">
-      <nav className="pointer-events-auto flex max-w-full items-center gap-1 rounded-full border border-white/10 bg-card/60 p-1.5 shadow-lg shadow-black/20 backdrop-blur-md">
+    <header className="whitespace-nowrap pointer-events-none sticky top-4 z-40 flex justify-center px-4">
+      <nav className="pointer-events-auto flex max-w-full items-center gap-0.5 max-w-[calc(100vw-2rem)] rounded-full border border-white/10 bg-card/60 p-1.5 shadow-lg shadow-black/20 backdrop-blur-md">
         {NAV.map((item) => {
           const isActive = active === item.id;
           const Icon = item.icon;
@@ -49,7 +49,7 @@ export function SiteHeader() {
               key={item.id}
               href={`#${item.id}`}
               aria-label={Icon ? item.label : undefined}
-              className={`relative flex items-center justify-center rounded-full px-3 py-2.5 text-sm font-medium transition-colors sm:px-5 ${
+              className={`relative flex items-center justify-center rounded-full px-2.5 text-xs font-medium transition-colors sm:px-4 sm:text-sm ${
                 isActive
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"

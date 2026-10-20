@@ -19,7 +19,7 @@ export function StatCard({ title, value, subtitle, icon }: StatCardProps) {
         </span>
       </div>
 
-      <div className="mt-8 text-3xl font-bold tracking-tight tabular-nums transition-colors duration-300 group-hover:text-white">
+      <div className="mt-8 text-2xl sm:text-3xl break-words font-bold tracking-tight tabular-nums transition-colors duration-300 group-hover:text-white">
         {value}
       </div>
       <div className="mt-1 min-h-5 text-sm text-muted-foreground transition-colors duration-300 group-hover:text-slate-400">
