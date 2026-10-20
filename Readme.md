@@ -60,39 +60,39 @@ TidalIQ watches the three chains, saves every transfer above a size threshold, a
 
 ```mermaid
 flowchart LR
-    subgraph Chains
-        ETH[Ethereum RPC]
-        SOL[Solana RPC]
-        BTC[Bitcoin RPC]
+    subgraph Chains["Blockchains"]
+        ETH["Ethereum RPC"]
+        SOL["Solana RPC"]
+        BTC["Bitcoin RPC"]
     end
 
     subgraph API["Rust API (axum + tokio)"]
-        ING[Ingestion services<br/>threshold filter + price lookup]
-        REST[REST routes<br/>/transactions /stats /volume]
-        AIR[AI routes<br/>/ai/*]
-        WRK[AI background workers<br/>analysis, embedder, digest]
-        CLIENT[NVIDIA client<br/>model registry, rate limit,<br/>budget, fallbacks]
+        ING["Ingestion services"]
+        REST["REST routes"]
+        AIR["AI routes"]
+        WRK["AI background workers"]
+        CLIENT["NVIDIA client"]
     end
 
-    DB[(Supabase Postgres<br/>+ pgvector)]
-    NV[NVIDIA API<br/>chat + embeddings]
-    WEB[Next.js dashboard]
-    TG[Telegram]
+    DB[("Supabase Postgres + pgvector")]
+    NV["NVIDIA API"]
+    WEB["Next.js dashboard"]
+    TG["Telegram"]
 
     ETH --> ING
     SOL --> ING
     BTC --> ING
     ING --> DB
 
-    WEB -->|HTTP + SSE| REST
-    WEB -->|HTTP + SSE| AIR
+    WEB -->|"HTTP + SSE"| REST
+    WEB -->|"HTTP + SSE"| AIR
     REST --> DB
     AIR --> DB
     AIR --> CLIENT
     WRK --> DB
     WRK --> CLIENT
     CLIENT --> NV
-    WRK -.->|daily digest| TG
+    WRK -.->|"daily digest"| TG
 ```
 
 ### Ingestion
@@ -103,15 +103,15 @@ Each chain has its own service running as a background task. It reads new blocks
 
 ```mermaid
 flowchart TD
-    A[New transaction in DB] --> B[Worker picks transactions<br/>with impact score at or above threshold]
-    B --> C[Build context from SQL<br/>wallet history, token averages,<br/>burst count, labels]
-    C --> D[Rule engine<br/>score and anomaly flags]
-    D --> E[LLM writes summary<br/>and a small score adjustment]
-    E --> F{Validation<br/>numbers trace to context,<br/>no addresses, no advice}
-    F -->|pass| G[Store analysis]
-    F -->|fail| H[Template summary<br/>from the same facts]
+    A["New transaction in DB"] --> B["Worker picks transactions above impact threshold"]
+    B --> C["Build context from SQL"]
+    C --> D["Rule engine: score and anomaly flags"]
+    D --> E["LLM writes summary and small score adjustment"]
+    E --> F{"Validation passes?"}
+    F -->|"pass"| G["Store analysis"]
+    F -->|"fail"| H["Template summary from the same facts"]
     H --> G
-    G --> I[Embedder stores<br/>2048-dim vector]
+    G --> I["Embedder stores 2048-dim vector"]
 ```
 
 The principle throughout is **grounding**: the model never reads raw chain data or invents facts. It receives a fact sheet computed in SQL, writes text, and the server rejects any output that contains a number that is not in the facts, a full address or hash, or trading advice. When validation fails, the user sees a plain template built from the same facts, never an unchecked answer.
@@ -125,22 +125,22 @@ sequenceDiagram
     participant DB as Postgres
     participant N as NVIDIA
 
-    U->>A: POST /ai/chat/stream (message, session id)
-    A->>A: Topic gate (off-topic gets fixed reply, no model call)
-    A->>DB: Load last messages, save user message
+    U->>A: POST chat stream with message and session id
+    A->>A: Topic gate, off-topic gets fixed reply
+    A->>DB: Load recent messages and save user message
     A->>N: Embed the question
-    A->>DB: Semantic cache lookup (10 min, high similarity)
+    A->>DB: Semantic cache lookup
     alt cache hit
-        A-->>U: meta, token, done (source cache)
+        A-->>U: meta, token, done from cache
     else cache miss
-        A->>DB: Hybrid search (filters + vector order) and 24h stats
-        A-->>U: SSE meta (numbered sources)
+        A->>DB: Hybrid search and 24h stats
+        A-->>U: SSE meta with numbered sources
         A->>N: Stream completion with numbered data
         N-->>A: tokens
-        A-->>U: SSE token events (live text)
+        A-->>U: SSE token events
         A->>A: Validate text, citations and numbers
-        A->>DB: Save answer, cache if validated
-        A-->>U: SSE done (final text, citations)
+        A->>DB: Save answer and cache if validated
+        A-->>U: SSE done with final text and citations
     end
 ```
 
