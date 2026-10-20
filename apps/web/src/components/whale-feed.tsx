@@ -59,7 +59,9 @@ function ScoreBadge({
 }
 
 const HEAD =
-  "text-center text-xs font-semibold uppercase tracking-wide text-slate-700";
+  "px-1 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-700 md:px-2 md:text-xs";
+
+const CELL = "whitespace-normal px-1 md:px-2";
 
 function AddrLink({ chain, addr }: { chain: string; addr: string }) {
   const meta = CHAIN_META[chain];
@@ -113,13 +115,17 @@ export function WhaleFeed({ transactions, loading }: WhaleFeedProps) {
     <Table className="table-fixed">
       <TableHeader>
         <TableRow className="border-slate-500/40 bg-slate-900/10 hover:bg-slate-900/10">
-          <TableHead className={`${HEAD} w-[11%]`}>Chain</TableHead>
-          <TableHead className={`${HEAD} w-[15%]`}>Amount</TableHead>
-          <TableHead className={`${HEAD} w-[19%]`}>Value</TableHead>
-          <TableHead className={`${HEAD} w-[8%]`}>Score</TableHead>
-          <TableHead className={`${HEAD} w-[28%]`}>From → To</TableHead>
-          <TableHead className={`${HEAD} w-[9%]`}>Time</TableHead>
-          <TableHead className="w-[10%]" />
+          <TableHead className={`${HEAD} w-[24%] md:w-[11%]`}>Chain</TableHead>
+          <TableHead className={`${HEAD} w-[22%] md:w-[15%]`}>Amount</TableHead>
+          <TableHead className={`${HEAD} w-[28%] md:w-[19%]`}>Value</TableHead>
+          <TableHead className={`${HEAD} w-[12%] md:w-[8%]`}>Score</TableHead>
+          <TableHead className={`${HEAD} hidden md:table-cell md:w-[28%]`}>
+            From → To
+          </TableHead>
+          <TableHead className={`${HEAD} hidden md:table-cell md:w-[9%]`}>
+            Time
+          </TableHead>
+          <TableHead className="w-[14%] md:w-[10%]" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -130,25 +136,32 @@ export function WhaleFeed({ transactions, loading }: WhaleFeedProps) {
           return (
             <Fragment key={tx.id}>
               <TableRow className="group cursor-default border-slate-500/30 transition-all duration-300 hover:bg-white/60 hover:shadow-sm">
-
-                <TableCell className="whitespace-normal">
+                <TableCell className={CELL}>
                   <div className="flex justify-center transition-transform duration-300 group-hover:scale-110">
-                    <Badge variant="outline" className={meta?.badge}>
+                    <Badge
+                      variant="outline"
+                      className={`px-1.5 text-[10px] md:px-2 md:text-xs ${meta?.badge ?? ""}`}
+                    >
                       {meta?.label ?? tx.chain}
                     </Badge>
                   </div>
                 </TableCell>
 
-                <TableCell className="whitespace-normal text-center font-medium tabular-nums transition-colors group-hover:text-slate-950">
+                <TableCell
+                  className={`${CELL} text-center text-xs font-medium tabular-nums transition-colors group-hover:text-slate-950 md:text-sm`}
+                >
                   {meta ? formatAmount(tx.value, meta.decimals) : tx.value}{" "}
                   <span className="text-muted-foreground">
                     {tx.token_symbol}
                   </span>
+                  <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground md:hidden">
+                    {timeAgo(tx.tx_timestamp)}
+                  </span>
                 </TableCell>
 
-                <TableCell className="whitespace-normal">
+                <TableCell className={CELL}>
                   <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-                    <span className="inline-block font-semibold tabular-nums text-emerald-700 transition-all duration-300 group-hover:scale-105 group-hover:font-bold">
+                    <span className="inline-block text-xs font-semibold tabular-nums text-emerald-700 transition-all duration-300 group-hover:scale-105 group-hover:font-bold md:text-sm">
                       {formatUsd(tx.value_usd)}
                     </span>
                     <Badge variant="outline" className={tier.className}>
@@ -157,7 +170,7 @@ export function WhaleFeed({ transactions, loading }: WhaleFeedProps) {
                   </div>
                 </TableCell>
 
-                <TableCell className="whitespace-normal">
+                <TableCell className={CELL}>
                   <div className="flex justify-center">
                     <ScoreBadge
                       score={tx.impact_score}
@@ -167,7 +180,7 @@ export function WhaleFeed({ transactions, loading }: WhaleFeedProps) {
                   </div>
                 </TableCell>
 
-                <TableCell className="whitespace-normal">
+                <TableCell className={`${CELL} hidden md:table-cell`}>
                   <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
                     <AddrLink chain={tx.chain} addr={tx.from_address} />
                     <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-300 group-hover:translate-x-0.5" />
@@ -175,12 +188,14 @@ export function WhaleFeed({ transactions, loading }: WhaleFeedProps) {
                   </div>
                 </TableCell>
 
-                <TableCell className="whitespace-normal text-center text-xs text-muted-foreground transition-colors group-hover:text-slate-900">
+                <TableCell
+                  className={`${CELL} hidden text-center text-xs text-muted-foreground transition-colors group-hover:text-slate-900 md:table-cell`}
+                >
                   {timeAgo(tx.tx_timestamp)}
                 </TableCell>
 
-                <TableCell className="whitespace-normal">
-                  <div className="flex items-center justify-center gap-2">
+                <TableCell className={CELL}>
+                  <div className="flex items-center justify-center gap-1.5 md:gap-2">
                     <button
                       type="button"
                       onClick={() => setOpenHash(open ? null : tx.hash)}
@@ -215,9 +230,14 @@ export function WhaleFeed({ transactions, loading }: WhaleFeedProps) {
                 <TableRow className="border-slate-500/30 bg-white/40 hover:bg-white/40">
                   <TableCell
                     colSpan={7}
-                    className="whitespace-normal break-words px-6"
+                    className="whitespace-normal break-words px-3 md:px-6"
                   >
                     <div className="min-w-0 max-w-full">
+                      <div className="mb-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 md:hidden">
+                        <AddrLink chain={tx.chain} addr={tx.from_address} />
+                        <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        <AddrLink chain={tx.chain} addr={tx.to_address} />
+                      </div>
                       <TxDetail tx={tx} />
                     </div>
                   </TableCell>
