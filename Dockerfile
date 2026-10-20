@@ -1,8 +1,8 @@
 FROM rust:1-bookworm AS build
 WORKDIR /app
 RUN apt-get update && apt-get install -y pkg-config libssl-dev
-COPY Cargo.toml Cargo.lock ./
-COPY src ./src
+COPY apps/api/Cargo.toml apps/api/Cargo.lock ./
+COPY apps/api/src ./src
 RUN cargo build --release
 
 FROM debian:bookworm-slim

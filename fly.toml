@@ -1,0 +1,46 @@
+app = "tidaliq-api" 
+primary_region = "bom"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "4000"
+  AI_ENABLED = "true"
+  NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
+  AI_FAST_MODELS = "nvidia/nemotron-3-super-120b-a12b,nvidia/nemotron-3.5-lightning-30b-a3b,google/gemma-4-31b-it"
+  AI_STRONG_MODELS = "nvidia/nemotron-3-super-120b-a12b,deepseek-ai/deepseek-v4.1-flash,z-ai/glm-5.3-flash"
+  AI_NO_THINK_MODELS = "nvidia/nemotron-3-super-120b-a12b"
+  AI_EMBED_MODEL = "nvidia/nemotron-3-embed-1b"
+  AI_EMBED_TRUNCATE = "true"
+  AI_RPM = "30"
+  AI_DAILY_TOKEN_BUDGET = "400000"
+  AI_COST_PER_1K_TOKENS = "0"
+  AI_MIN_IMPACT = "40"
+  AI_FEATURE_SEARCH = "true"
+  AI_FEATURE_CHAT = "true"
+  AI_FEATURE_PROFILES = "true"
+  AI_FEATURE_NARRATIVES = "true"
+  AI_DIGEST_HOUR_UTC = "3"
+  ETH_THRESHOLD_USD = "1000000"
+  SOL_THRESHOLD_USD = "1000000"
+  BTC_THRESHOLD_USD = "5000000"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"
