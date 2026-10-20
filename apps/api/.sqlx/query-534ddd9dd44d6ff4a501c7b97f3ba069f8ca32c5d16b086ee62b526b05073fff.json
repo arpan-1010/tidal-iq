@@ -1,0 +1,208 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM transactions WHERE hash = $1 LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "hash"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "chain",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "chain"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "from_address",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "from_address"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "to_address",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "to_address"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "value",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "value"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "value_usd",
+        "type_info": "Numeric",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "value_usd"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "token",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "token"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "token_symbol",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "token_symbol"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "block_number",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "block_number"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "tx_timestamp",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "tx_timestamp"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "created_at",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "ai_summary",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "ai_summary"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "impact_score",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "impact_score"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "is_anomaly",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "is_anomaly"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "anomaly_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "anomaly_reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "534ddd9dd44d6ff4a501c7b97f3ba069f8ca32c5d16b086ee62b526b05073fff"
+}

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n           INSERT INTO transactions\n            (id, hash, chain, from_address, to_address, value, value_usd, token, token_symbol, block_number, tx_timestamp)\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n           ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Numeric",
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ee79795bd6ee25ba0e57eb43c5fe9816c2955e6b527f5108d7c7125f4c2b0d2e"
+}
