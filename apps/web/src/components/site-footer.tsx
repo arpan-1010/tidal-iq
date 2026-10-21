@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { ChainIcon } from "@/components/chain-icon";
 import { ArrowUp, ChevronRight } from "lucide-react";
 
 const LINKS = [
@@ -9,20 +10,18 @@ const LINKS = [
 ];
 
 const CHAINS = [
-  { sym: "ETH", name: "Ethereum", dot: "bg-indigo-400" },
-  { sym: "SOL", name: "Solana", dot: "bg-fuchsia-400" },
-  { sym: "BTC", name: "Bitcoin", dot: "bg-orange-400" },
+  { chain: "ethereum", sym: "ETH", name: "Ethereum" },
+  { chain: "solana", sym: "SOL", name: "Solana" },
+  { chain: "bitcoin", sym: "BTC", name: "Bitcoin" },
 ];
 
 export function SiteFooter() {
   return (
     <footer className="relative mt-10 overflow-hidden bg-[#0f1f3d] pb-24 text-slate-300 md:pb-0">
-
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/60 to-transparent" />
       <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-sky-500/10 blur-3xl" />
 
       <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
-
         <div className="space-y-4">
           <a href="#top" className="inline-flex items-center gap-3">
             <span className="relative block h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-[#010b26] ring-1 ring-white/10">
@@ -86,14 +85,14 @@ export function SiteFooter() {
               Chains tracked
             </h3>
             <div className="flex flex-wrap gap-2">
-              {CHAINS.map((c) => (
+              {CHAINS.map(({ chain, sym, name }) => (
                 <span
-                  key={c.sym}
-                  title={c.name}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200 transition-colors hover:bg-white/15"
+                  key={sym}
+                  title={name}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1 pl-1 pr-3 text-xs font-semibold text-slate-200 transition-colors hover:bg-white/15"
                 >
-                  <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
-                  {c.sym}
+                  <ChainIcon chain={chain} size={24} />
+                  {sym}
                 </span>
               ))}
             </div>
@@ -106,7 +105,9 @@ export function SiteFooter() {
 
       <div className="relative border-t border-white/10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-slate-400 sm:flex-row sm:px-6">
-          <span>© {new Date().getFullYear()} TidalIQ. All rights reserved.</span>
+          <span>
+            © {new Date().getFullYear()} TidalIQ. All rights reserved.
+          </span>
           <span className="order-last sm:order-none">
             AI-generated insights, not financial advice.
           </span>
